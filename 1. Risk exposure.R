@@ -3,22 +3,22 @@ library(tidyverse)
 library(readxl)
 rm(list = ls());gc()
 
-# --------------------------- Bases de datos -----------------------------------
+# --------------------------- Bases de Data -----------------------------------
 # DANE - Población municipal - DNP rural
-popRural <- readRDS('Datos/popUR.rds') %>%
+popRural <- readRDS('Data/popUR.rds') %>%
   filter(region == 'Rural') %>%
   group_by(year,edad,sexo) %>% summarise(popR = sum(pop),.groups = 'drop') %>%
   mutate(Sexo = ifelse(sexo == 'Femenino','FEMENINO','MASCULINO')) %>% select(-sexo)
 # DANE - GEIH último año finalizado dic 2023
-GEIH <- readRDS('Datos/GEIH_2023.rds') %>%
+GEIH <- readRDS('Data/GEIH_2023.rds') %>%
   mutate(P6040 = as.numeric(P6040),Sexo = ifelse(P6020 == 2,'FEMENINO','MASCULINO'))
 # DNP - Sisbén IV 2023
-sisbenR <- readRDS('Datos/SISBEN_Rural.rds') %>%
+sisbenR <- readRDS('Data/SISBEN_Rural.rds') %>%
   mutate(Sexo = ifelse(PER001==1,'MASCULINO','FEMENINO'))
 # C035 - Clase de riesgo CIIU V3
-cr_geih3 <- read_excel('Datos/c035_anio_cr_ciiu3_geih_2017_082022.xlsx') %>%
+cr_geih3 <- read_excel('Data/c035_anio_cr_ciiu3_geih_2017_082022.xlsx') %>%
   filter(NRO_AHNO != 2022) %>%
-  bind_rows(read_excel('Datos/c035_cl_2022_2023_CIIU3.xlsx')) %>%
+  bind_rows(read_excel('Data/c035_cl_2022_2023_CIIU3.xlsx')) %>%
   group_by(NRO_AHNO) %>% mutate(prop = personas_unicas/sum(personas_unicas)) %>%
   ungroup
 
@@ -33,7 +33,7 @@ popEdadSexo <- bind_rows(
 popEdadSexo
 
 # GEIH - Aproximación de expuestos
-# Diccionario: "Datos/ddi-documentation-spanish-782.pdf"
+# Diccionario: "Data/ddi-documentation-spanish-782.pdf"
 # CLASE: 2 rural, IE: 1 informal, P6100: 3 subsidiado, P6990: ARL No/NR
 # P6040: edad, P6020(P3271): Sexo 1 Hombre 2 Mujer
 # Escenario trabajadores informales (RS, sin ARL)
@@ -107,7 +107,7 @@ seguroBEPSSexo <- tibble(Sexo = c('FEMENINO','MASCULINO'),
   mutate(polizaR = poliza_nac*(ahorrarR/ahorrar_nac))
 
 # Filtro seguro de vida BEPS
-GEIH2021 <- readRDS('Datos/GEIH_2021.rds') %>%
+GEIH2021 <- readRDS('Data/GEIH_2021.rds') %>%
   mutate(P6040 = as.numeric(P6040),Sexo = ifelse(P6020 == 2,'FEMENINO','MASCULINO'))
 popGEIH2021 <- bind_rows(
   GEIH2021 %>% filter(CLASE == 2,P6040 >= 18,P6040 <= 59,Sexo == 'FEMENINO'),
@@ -225,4 +225,4 @@ popER3 %>% group_by(year) %>% summarise(sum(popER))
 # writexl::write_xlsx(list(Modelo1 = popEREdadSexo,
 #                          Modelo2 = popER2,
 #                          Modelo3 = popER3),
-#                     'Datos/ExpuestoRiesgo.xlsx')
+#                     'Data/ExpuestoRiesgo.xlsx')

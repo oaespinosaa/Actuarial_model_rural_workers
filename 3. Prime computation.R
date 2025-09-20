@@ -5,34 +5,34 @@ rm(list = ls());gc()
 
 # --------------------------- Insumos ------------------------------------------
 # Expuestos al riesgo
-ER1 <- read_excel('Datos/ExpuestoRiesgo.xlsx',sheet = 'Modelo1') %>%
+ER1 <- read_excel('Data/ExpuestoRiesgo.xlsx',sheet = 'Modelo1') %>%
   select(year,Sexo,edad,popER)
-ER2 <- read_excel('Datos/ExpuestoRiesgo.xlsx',sheet = 'Modelo2') %>%
+ER2 <- read_excel('Data/ExpuestoRiesgo.xlsx',sheet = 'Modelo2') %>%
   select(year,CR=COD_CLASE_RIESGO_AECT,popER) %>%
   mutate(CR = as.numeric(CR))
 
 # Modelo 1
-incapacidad <- read_excel('Datos/Insumos modelo 1.xlsx',sheet = 'Incapacidad_parcial') %>%
+incapacidad <- read_excel('Data/Insumos modelo 1.xlsx',sheet = 'Incapacidad_parcial') %>%
   mutate(Sexo = ifelse(SEXO == 'F','FEMENINO','MASCULINO'),
          tipo = 'Parcial') %>%
   select(tipo,Sexo,prop_diasidem_sini_rural,prop_sini_exp_rural)
-permanente <- read_excel('Datos/Insumos modelo 1.xlsx',sheet = 'Incapacidad_permanente') %>%
+permanente <- read_excel('Data/Insumos modelo 1.xlsx',sheet = 'Incapacidad_permanente') %>%
   mutate(Sexo = ifelse(SEXO == 'F','FEMENINO','MASCULINO'),
          tipo = 'Permanente') %>%
   select(tipo,Sexo,prop_sini_exp_rural)
-tablamort <- bind_rows(read_excel('Datos/Insumos modelo 1.xlsx',sheet = 'tabla_mortalidad_femenino') %>%
+tablamort <- bind_rows(read_excel('Data/Insumos modelo 1.xlsx',sheet = 'tabla_mortalidad_femenino') %>%
                          mutate(Sexo = 'FEMENINO'),
-                       read_excel('Datos/Insumos modelo 1.xlsx',sheet = 'tabla_mortalidad_masculino') %>%
+                       read_excel('Data/Insumos modelo 1.xlsx',sheet = 'tabla_mortalidad_masculino') %>%
                          mutate(Sexo = 'MASCULINO'))
 indemnizacion <- tibble(AuxilioFunerario=5,Permanente=9,SeguroVida=12)
-factores <- read_excel('Datos/Factor_ajuste.xlsx')
+factores <- read_excel('Data/Factor_ajuste.xlsx')
 
 # DANE - Línea de pobreza monetaria 2021-2023
-pobreza <- read_excel("Datos/PobrezaMonetaria.xlsx") %>%
+pobreza <- read_excel("Data/PobrezaMonetaria.xlsx") %>%
   mutate(prop = Pobreza/SMMLV)
 
 # Modelo 2
-cotARL <- read_excel('Datos/CotizacionARL.xlsx') %>%
+cotARL <- read_excel('Data/CotizacionARL.xlsx') %>%
   rename(prop_cot = Valor)
 
 # SMMLV 2024

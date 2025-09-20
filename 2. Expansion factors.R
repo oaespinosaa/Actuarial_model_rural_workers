@@ -4,7 +4,7 @@ library(readxl)
 rm(list = ls());gc()
 
 # DNP - Categorías de ruralidad
-UR <- read.csv("Datos/Categorias_de_Ruralidad.csv",encoding = "UTF-8",
+UR <- read.csv("Data/Categorias_de_Ruralidad.csv",encoding = "UTF-8",
                sep = ";") %>%
   mutate(region = ifelse(Categoria_ %in% c("Ciudades y aglomeraciones","Intermedio"),
                          "Urbano","Rural"),
@@ -13,9 +13,9 @@ UR <- read.csv("Datos/Categorias_de_Ruralidad.csv",encoding = "UTF-8",
   select(CODMUNI,Municipali,region)
 
 # ----------------------------- | ECV 2023 | ------------------------------ ####
-ecv <- read.csv2('Datos/ECV2023/Salud.CSV') %>%
-  left_join(read.csv2('Datos/ECV2023/Características y composición del hogar.CSV'),by = c('DIRECTORIO','SECUENCIA_P','ORDEN','FEX_C')) %>%
-  left_join(read.csv2('Datos/ECV2023/Datos de la vivienda.CSV'),by = c('DIRECTORIO','FEX_C')) %>%
+ecv <- read.csv2('Data/ECV2023/Salud.CSV') %>%
+  left_join(read.csv2('Data/ECV2023/Características y composición del hogar.CSV'),by = c('DIRECTORIO','SECUENCIA_P','ORDEN','FEX_C')) %>%
+  left_join(read.csv2('Data/ECV2023/Datos de la vivienda.CSV'),by = c('DIRECTORIO','FEX_C')) %>%
   mutate(FEX_C = as.numeric(FEX_C),Sexo = ifelse(P6020==2,'FEMENINO','MASCULINO'),
          CODMUNI = paste0(formatC(P1_DEPARTAMENTO,width = 2,flag = "0"),
                           formatC(P1_MUNICIPIO,width = 3,flag = "0"))) %>%
@@ -76,4 +76,4 @@ perma <- ecv_RCi %>% left_join(ecv_RSi,by = c('disc','Sexo')) %>% mutate(prop = 
 
 # writexl::write_xlsx(tibble(tipo = c('Parcial','Permanente'),
 #                            factor = c(incap,perma)),
-#                     'Datos/Factor_ajuste.xlsx')
+#                     'Data/Factor_ajuste.xlsx')
