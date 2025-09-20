@@ -1,37 +1,37 @@
-# Librerias y limpiar entorno de trabajo
+# Libraries and clear workspace
 library(tidyverse)
 library(readxl)
 rm(list = ls());gc()
 
-# --------------------------- Insumos ------------------------------------------
-# Expuestos al riesgo
-ER1 <- read_excel('Data/ExpuestoRiesgo.xlsx',sheet = 'Modelo1') %>%
+# ---------------------------- Inputs ------------------------------------------
+# Exposed to risk
+ER1 <- read_excel('Data/RiskExposed.xlsx',sheet = 'Modelo1') %>%
   select(year,Sexo,edad,popER)
-ER2 <- read_excel('Data/ExpuestoRiesgo.xlsx',sheet = 'Modelo2') %>%
+ER2 <- read_excel('Data/RiskExposed.xlsx',sheet = 'Modelo2') %>%
   select(year,CR=COD_CLASE_RIESGO_AECT,popER) %>%
   mutate(CR = as.numeric(CR))
 
-# Modelo 1
-incapacidad <- read_excel('Data/Insumos modelo 1.xlsx',sheet = 'Incapacidad_parcial') %>%
+# Model 1
+incapacidad <- read_excel('Data/Inputs model 1.xlsx',sheet = 'Incapacidad_parcial') %>%
   mutate(Sexo = ifelse(SEXO == 'F','FEMENINO','MASCULINO'),
          tipo = 'Parcial') %>%
   select(tipo,Sexo,prop_diasidem_sini_rural,prop_sini_exp_rural)
-permanente <- read_excel('Data/Insumos modelo 1.xlsx',sheet = 'Incapacidad_permanente') %>%
+permanente <- read_excel('Data/Inputs model 1.xlsx',sheet = 'Incapacidad_permanente') %>%
   mutate(Sexo = ifelse(SEXO == 'F','FEMENINO','MASCULINO'),
          tipo = 'Permanente') %>%
   select(tipo,Sexo,prop_sini_exp_rural)
-tablamort <- bind_rows(read_excel('Data/Insumos modelo 1.xlsx',sheet = 'tabla_mortalidad_femenino') %>%
+tablamort <- bind_rows(read_excel('Data/Inputs model 1.xlsx',sheet = 'tabla_mortalidad_femenino') %>%
                          mutate(Sexo = 'FEMENINO'),
-                       read_excel('Data/Insumos modelo 1.xlsx',sheet = 'tabla_mortalidad_masculino') %>%
+                       read_excel('Data/Inputs model 1.xlsx',sheet = 'tabla_mortalidad_masculino') %>%
                          mutate(Sexo = 'MASCULINO'))
 indemnizacion <- tibble(AuxilioFunerario=5,Permanente=9,SeguroVida=12)
-factores <- read_excel('Data/Factor_ajuste.xlsx')
+factores <- read_excel('Data/Adjust_factor.xlsx')
 
-# DANE - Línea de pobreza monetaria 2021-2023
+# DANE - Poverty monetary line 2021-2023
 pobreza <- read_excel("Data/PobrezaMonetaria.xlsx") %>%
   mutate(prop = Pobreza/SMMLV)
 
-# Modelo 2
+# Model 2
 cotARL <- read_excel('Data/CotizacionARL.xlsx') %>%
   rename(prop_cot = Valor)
 
@@ -47,7 +47,7 @@ inflacion <- tibble(year = 2024:2028,
                               smmlv2024*(1+inf2024)*(1+auminf),
                               smmlv2024*(1+inf2024)*(1+auminf)^2,
                               smmlv2024*(1+inf2024)*(1+auminf)^3))
-# Crecimiento SMMLV
+# SMMLV growth
 crecSMMLV <- tibble(year = 2024:2028,
                     smmlv = c(smmlv2024,
                               smmlv2024*(1+inf2024+aumprod),
@@ -55,12 +55,12 @@ crecSMMLV <- tibble(year = 2024:2028,
                               smmlv2024*(1+inf2024+aumprod)*(1+auminf+aumprod)^2,
                               smmlv2024*(1+inf2024+aumprod)*(1+auminf+aumprod)^3))
 
-# Valor de escalamiento
-scl <- 1e6 # millones
+# Scale value
+scl <- 1e6 # millions COP
 
 ################################################################################
-# ------------------- | Modelo 1. Dignidad rural | ------------------------ ####
-# Valores monetarios
+# -------------------- | Model 1. Dignidad rural | ------------------------ ####
+# Monetary values
 montoM1 <- pobreza %>% summarise(media = mean(prop),key = 1) %>%
   left_join(inflacion %>% mutate(key = 1),by = 'key') %>%
   mutate(indem = round(media*2,4),
@@ -69,7 +69,7 @@ montoM1 <- pobreza %>% summarise(media = mean(prop),key = 1) %>%
   select(year,valor_incap,valor_smmlv)
 montoM1
 
-# Número de seguros de vida - auxilio funerario
+# Life insurance and assistance
 muerte_auxseg <- ER1 %>% left_join(tablamort,by = c('Sexo','edad' = 'x')) %>%
   mutate(nro = popER*`q(x)`) %>%
   bind_cols(indemnizacion) %>%
@@ -79,8 +79,8 @@ muerte_auxseg <- ER1 %>% left_join(tablamort,by = c('Sexo','edad' = 'x')) %>%
   group_by(year) %>% summarise(muertes = sum(nro),costo_aux = sum(costo_aux),
                                costo_seg = sum(costo_seg))
 
-# Caso base
-# Número de incapacidades parciales
+# Base case
+# Temporary incapacity
 indem_inc <- ER1 %>% group_by(year,Sexo) %>%
   summarise(popER = sum(popER),.groups = 'drop') %>%
   left_join(incapacidad,by = 'Sexo') %>%
@@ -91,7 +91,7 @@ indem_inc <- ER1 %>% group_by(year,Sexo) %>%
   mutate(costo = valor_incap*mes_nro/scl) %>%
   group_by(year) %>% summarise(inc = sum(nro),
                                mes_inc = sum(mes_nro),costo_inc = sum(costo))
-# Número de incapacidades permanentes
+# Permanent disability
 indem_per <- ER1 %>% group_by(year,Sexo) %>%
   summarise(popER = sum(popER),.groups = 'drop') %>%
   left_join(permanente,by = 'Sexo') %>%
@@ -111,8 +111,8 @@ M1_Base <- indem_inc %>% left_join(indem_per,by = 'year') %>%
   mutate(PP = total*scl/popER,ER_M1Base = popER,PC_M1Base = PP/(1-0.21),
          totalM1Base = PC_M1Base*popER/scl)
 
-# Escenario optimista - reducción 2% anual siniestralidad
-# Número de incapacidades parciales
+# Optimistic case -  decline 2% anual accident rate
+# Temporary incapacity
 indem_inc_Opt <- ER1 %>% group_by(year,Sexo) %>%
   summarise(popER = sum(popER),.groups = 'drop') %>%
   left_join(incapacidad,by = 'Sexo') %>%
@@ -123,7 +123,7 @@ indem_inc_Opt <- ER1 %>% group_by(year,Sexo) %>%
   mutate(costo = valor_incap*mes_nro/scl) %>%
   group_by(year) %>% summarise(inc = sum(nro),mes_inc = sum(mes_nro),
                                costo_inc = sum(costo))
-# Número de incapacidades permanentes
+# Permanent disability
 indem_per_Opt <- ER1 %>% group_by(year,Sexo) %>%
   summarise(popER = sum(popER),.groups = 'drop') %>%
   left_join(permanente,by = 'Sexo') %>%
@@ -143,8 +143,8 @@ M1_Opt <- indem_inc_Opt %>% left_join(indem_per_Opt,by = 'year') %>%
   mutate(PP = total*scl/popER,ER_M1Opt = popER,PC_M1Opt = PP/(1-0.21),
          totalM1Opt = PC_M1Opt*popER/scl)
 
-# Escenario pesimista - aumento 2% anual siniestralidad
-# Número de incapacidades parciales
+# Pessimistic case - rise 2% anual accident rate
+# Temporary incapacity
 indem_inc_Pes <- ER1 %>% group_by(year,Sexo) %>%
   summarise(popER = sum(popER),.groups = 'drop') %>%
   left_join(incapacidad,by = 'Sexo') %>%
@@ -155,7 +155,7 @@ indem_inc_Pes <- ER1 %>% group_by(year,Sexo) %>%
   mutate(costo = valor_incap*mes_nro/scl) %>%
   group_by(year) %>% summarise(inc = sum(nro),mes_inc = sum(mes_nro),
                                costo_inc = sum(costo))
-# Número de incapacidades permanentes
+# Permanent disability
 indem_per_Pes <- ER1 %>% group_by(year,Sexo) %>%
   summarise(popER = sum(popER),.groups = 'drop') %>%
   left_join(permanente,by = 'Sexo') %>%
@@ -180,12 +180,12 @@ M1_Opt
 M1_Pes
 
 ################################################################################
-# ------------------- | Modelo 2. Subsidio rural | ------------------------ ####
-# Valores monetarios
+# -------------------- | Model 2. Subsidio rural | ------------------------ ####
+# Monetary values
 montoM2 <- crecSMMLV %>% mutate(valor_cot = smmlv) %>% select(-smmlv)
 montoM2
 
-# Cotización subsidiada rural
+# Rural subsidies
 M2 <- ER2 %>% left_join(cotARL,by = 'CR') %>% left_join(montoM2,by = 'year') %>%
   mutate(costo_cot = popER*valor_cot*prop_cot*12/scl,
          PC_M2 = costo_cot*scl/popER)

@@ -1,21 +1,21 @@
-# Librerias y limpiar entorno de trabajo
+# Libraries and clear workspace
 library(tidyverse)
 library(readxl)
 rm(list = ls());gc()
 
-# --------------------------- Bases de Data -----------------------------------
-# DANE - Población municipal - DNP rural
+# ----------------------------- Databases --------------------------------------
+# DANE - Municipality population - DNP rural
 popRural <- readRDS('Data/popUR.rds') %>%
   filter(region == 'Rural') %>%
   group_by(year,edad,sexo) %>% summarise(popR = sum(pop),.groups = 'drop') %>%
   mutate(Sexo = ifelse(sexo == 'Femenino','FEMENINO','MASCULINO')) %>% select(-sexo)
-# DANE - GEIH último año finalizado dic 2023
+# DANE - GEIH final year dic 2023
 GEIH <- readRDS('Data/GEIH_2023.rds') %>%
   mutate(P6040 = as.numeric(P6040),Sexo = ifelse(P6020 == 2,'FEMENINO','MASCULINO'))
 # DNP - Sisbén IV 2023
 sisbenR <- readRDS('Data/SISBEN_Rural.rds') %>%
   mutate(Sexo = ifelse(PER001==1,'MASCULINO','FEMENINO'))
-# C035 - Clase de riesgo CIIU V3
+# C035 - Risk CIIU V3
 cr_geih3 <- read_excel('Data/c035_anio_cr_ciiu3_geih_2017_082022.xlsx') %>%
   filter(NRO_AHNO != 2022) %>%
   bind_rows(read_excel('Data/c035_cl_2022_2023_CIIU3.xlsx')) %>%
@@ -23,8 +23,8 @@ cr_geih3 <- read_excel('Data/c035_anio_cr_ciiu3_geih_2017_082022.xlsx') %>%
   ungroup
 
 ################################################################################
-# ------------------------ | Modelo 1: Dignidad rural | ------------------------
-# DANE - Proyecciones de población 2024-2028 DNP rural
+# ------------------------- | Model 1: Dignidad rural | ------------------------
+# DANE - Population projections 2024-2028 DNP rural
 popEdadSexo <- bind_rows(
   popRural %>% filter(edad >= 15,edad <= 59,Sexo == 'FEMENINO'),
   popRural %>% filter(edad >= 15,edad <= 64,Sexo == 'MASCULINO')
@@ -32,11 +32,11 @@ popEdadSexo <- bind_rows(
   filter(year %in% c(2024:2028))
 popEdadSexo
 
-# GEIH - Aproximación de expuestos
-# Diccionario: "Data/ddi-documentation-spanish-782.pdf"
-# CLASE: 2 rural, IE: 1 informal, P6100: 3 subsidiado, P6990: ARL No/NR
-# P6040: edad, P6020(P3271): Sexo 1 Hombre 2 Mujer
-# Escenario trabajadores informales (RS, sin ARL)
+# GEIH - Exposed approximation
+# Dictionary: "Data/ddi-documentation-spanish-782.pdf"
+# CLASE: 2 rural, IE: 1 informal, P6100: 3 subsidized, P6990: ARL No/NR
+# P6040: age, P6020(P3271): Sex 1 Man 2 Woman
+# Informal workers (RS, no ARL)
 popGEIHEdadSexo <- bind_rows(
   GEIH %>% filter(CLASE == 2,P6040 >= 15,P6040 <= 59,Sexo == 'FEMENINO'),
   GEIH %>% filter(CLASE == 2,P6040 >= 15,P6040 <= 64,Sexo == 'MASCULINO')) %>%
@@ -51,11 +51,11 @@ popGEIHEdadSexo <- bind_rows(
 popGEIHEdadSexo
 
 # Sisbén IV, DNP rural
-# Edad (per002)
-## 3	12 a 17 años - 1/6
-## 4	18 a 28 años - 1/11
-## 5	29 a 59 años - 1/31
-## 6	60 años y más - 1/15 (esperanza de vida 74)
+# Age (per002)
+## 3	12 to 17 years - 1/6
+## 4	18 to 28 years - 1/11
+## 5	29 to 59 years - 1/31
+## 6	60 years and more - 1/15 (life expectancy 74)
 aux_sisbenedad <- tibble(PER002 = c(3:6),
                          prop = c(1/(17-12+1),1/(28-18+1),1/(59-29+1),1/(74-60+1))) %>%
   left_join(tibble(edad = 12:74,PER002 = c(rep(3,17-12+1),rep(4,28-18+1),rep(5,59-29+1),rep(6,15))))
@@ -68,10 +68,10 @@ aux_sisbenedad <- tibble(PER002 = c(3:6),
 ## 2	Especial (Fuerzas Armadas, Ecopetrol, universidades públicas, magisterio)
 ## 3	Subsidiado (EPS-S)
 ## 9	No sabe
-# Privación IPM Proxy - Trabajo informal (i8)
+# Privación IPM Proxy - Informal work (i8)
 ## 0	No
 ## 1	Si
-# Sisbén IV (grupos A y B)
+# Sisbén IV (groups A and B)
 sisbenF <- sisbenR %>% filter(PER002 >= 3,I8 == 1,PER007 == 3) %>%
   group_by(Sexo,PER002) %>% summarise(popS = sum(FEX),.groups = 'drop') %>%
   left_join(aux_sisbenedad,relationship = 'many-to-many') %>%
@@ -93,7 +93,7 @@ popSISBENEdadSexoAB <-
   mutate(propSISBEN = popS/poptotS)
 popSISBENEdadSexoAB
 
-# Población cubierta por seguro de vida BEPS
+# Life insurance BEPS covered population
 polizabeps <- tibble(Sexo = rep(c('FEMENINO','MASCULINO'),each = 6),
                      year = rep(c(2016:2021),times = 2),
                      valor = c(12125,30406,65195,118647,109997,127249,
@@ -106,7 +106,7 @@ seguroBEPSSexo <- tibble(Sexo = c('FEMENINO','MASCULINO'),
   left_join(polizabeps %>% filter(year == 2021) %>% select(-year,Sexo,poliza_nac = valor),by = 'Sexo') %>%
   mutate(polizaR = poliza_nac*(ahorrarR/ahorrar_nac))
 
-# Filtro seguro de vida BEPS
+# Life insurance BEPS filter
 GEIH2021 <- readRDS('Data/GEIH_2021.rds') %>%
   mutate(P6040 = as.numeric(P6040),Sexo = ifelse(P6020 == 2,'FEMENINO','MASCULINO'))
 popGEIH2021 <- bind_rows(
@@ -131,9 +131,9 @@ popBEPSEdadSexo <- seguroBEPSSexo %>%
   select(-propSISBEN,-popS,-poptotS)
 popBEPSEdadSexo
 
-# Población expuesta al riesgo 2024-2028:
-# Proyección de población (2024 a 2028)* proporción GEIH (2023)*
-# proporción Sisben IV (2023) - Seguro de vida BEPS
+# Exposed to risk 2024-2028:
+# Population projection (2024 a 2028)* proportion GEIH (2023)*
+# proportion Sisben IV (2023) - Life insurance BEPS
 popEREdadSexo <- popEdadSexo %>% arrange(year) %>%
   left_join(popGEIHEdadSexo %>% select(-year), by = c('Sexo','edad')) %>%
   left_join(popSISBENEdadSexoAB,by = c('Sexo','edad')) %>%
@@ -147,7 +147,7 @@ popEREdadSexo %>% group_by(year,Sexo) %>%
 popEREdadSexo %>% group_by(year) %>% summarise(sum(popER))
 
 ################################################################################
-# ------------------------ | Modelo 2: Subsidio rural | ------------------------
+# ------------------------- | Model 2: Subsidio rural | ------------------------
 # DANE rural >= 18
 pop2 <- popRural %>% filter(edad >= 18) %>% group_by(year) %>%
   summarise(popR = sum(popR),.groups = 'drop') %>%
@@ -162,15 +162,15 @@ popSISBENC <- sisbenR %>% filter(Grupo %in% c('C'),PER002 %in% 4:6,I8 == 1,PER00
   mutate(propSISBENC = popS/poptotS)
 popSISBENC
 
-# GEIH rural >= 18, ocupados informales RS sin ARL
+# GEIH rural >= 18, informal workers RS no ARL
 geih_er <- GEIH %>% filter(CLASE == 2,P6040 >= 18) %>%
   filter(baseOcu == 1,IE == 1,P6100 == 3,P6990 != 1)
-# C035 clase de riesgo promedio 2017-2023
+# C035 risk average 2017-2023
 cr_geih3P <- cr_geih3 %>% filter(!is.na(COD_CLASE_RIESGO_AECT)) %>%
   group_by(COD_CLASE_RIESGO_AECT) %>% summarise(prop = mean(prop,na.rm = T),.groups = 'drop') %>%
   mutate(prop = prop/sum(prop))
 # sum(cr_geih3P$prop)
-# GEIH por clase de riesgo
+# GEIH by risk
 popGEIHCR <- geih_er %>% group_by(year) %>%
   summarise(pop_ie = sum(FEX_C),key = 1,.groups = "drop") %>%
   left_join(cr_geih3P %>% mutate(key = 1),by= 'key') %>%
@@ -180,9 +180,9 @@ popGEIHCR <- geih_er %>% group_by(year) %>%
   mutate(propGEIH = n/popTot)
 popGEIHCR
 
-# Población expuesta al riesgo 2024-2028:
-# Proyección de población (2024 a 2028)* proporción GEIH CIIU (2023)*
-# proporción Sisbén IV C (2023)
+# Exposed to risk 2024-2028:
+# Population projection (2024 a 2028)* proportion GEIH CIIU (2023)*
+# proportion Sisbén IV C (2023)
 popER2 <- pop2 %>% arrange(year) %>% mutate(key = 1) %>%
   left_join(popGEIHCR %>% select(-year) %>% mutate(key = 1), by = 'key',
             relationship = 'many-to-many') %>%
@@ -195,16 +195,16 @@ popER2 %>% select(year,COD_CLASE_RIESGO_AECT,popER) %>%
 popER2 %>% group_by(year) %>% summarise(sum(popER))
 
 ################################################################################
-# ---------------------- | Modelo 3: Identificar evasores | --------------------
-# DANE rural >= 18 por sexo
+# ----------------------- | Model 3: Identificar evasores | --------------------
+# DANE rural >= 18 by sex
 pop3 <- popRural %>% filter(edad >= 18) %>% group_by(year,Sexo) %>%
   summarise(popR = sum(popR),.groups = 'drop') %>%
   filter(year %in% c(2024:2028))
 pop3
 
-# GEIH rural >= 18, ocupadas
+# GEIH rural >= 18, workers
 geih_2 <- GEIH %>% filter(CLASE == 2,P6040 >= 18,baseOcu == 1)
-# Ingresos >= 1 SMMLV, sin ARL, sin subsidios
+# Income >= 1 SMMLV, no ARL, no subsidies
 smmlv2023 <- 1.16e6
 popGEIHeva <- geih_2 %>% filter(!is.na(P6500),P6500 >= smmlv2023,P6990 != 1,
                                 P6585S1 != 1,P6585S2 != 1,P6585S3 != 1,P6585S4 != 1) %>%
@@ -221,8 +221,8 @@ popER3 %>% select(year,Sexo,popER) %>%
 popER3 %>% group_by(year) %>% summarise(sum(popER))
 
 ################################################################################
-# Exportar expuestos al riesgo
-# writexl::write_xlsx(list(Modelo1 = popEREdadSexo,
-#                          Modelo2 = popER2,
-#                          Modelo3 = popER3),
-#                     'Data/ExpuestoRiesgo.xlsx')
+# Export exposed to risk
+# writexl::write_xlsx(list(Model1 = popEREdadSexo,
+#                          Model2 = popER2,
+#                          Model3 = popER3),
+#                     'Data/RiskExposed.xlsx')

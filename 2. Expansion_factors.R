@@ -1,10 +1,10 @@
-# Librerías y limpiar entorno de trabajo
+# Libraries and clear workspace
 library(tidyverse)
 library(readxl)
 rm(list = ls());gc()
 
-# DNP - Categorías de ruralidad
-UR <- read.csv("Data/Categorias_de_Ruralidad.csv",encoding = "UTF-8",
+# DNP - Rural categories
+UR <- read.csv("Data/Rurality_Categories.csv",encoding = "UTF-8",
                sep = ";") %>%
   mutate(region = ifelse(Categoria_ %in% c("Ciudades y aglomeraciones","Intermedio"),
                          "Urbano","Rural"),
@@ -24,7 +24,7 @@ ecv <- read.csv2('Data/ECV2023/Salud.CSV') %>%
                            P1906S4%in%c(1,2),P1906S5%in%c(1,2),P1906S6%in%c(1,2),
                            P1906S7%in%c(1,2),P1906S8%in%c(1,2)),1,0)) %>% ungroup
 
-########################### | Proxy días de incapacidad | ######################
+########################### | Proxy days of disability | #######################
 # P431: Por ese problema de salud, ¿durante cuántos días en total dejó ____ de realizar sus actividades normales?
 ecv %>% filter(region == 'Rural',Sexo == 'FEMENINO',P6040 >= 15,P6040 <= 59) %>%
   bind_rows(ecv %>% filter(region == 'Rural',Sexo == 'MASCULINO',P6040 >= 15,P6040 <= 64)) %>%
@@ -50,7 +50,7 @@ incap <- ecv_RCd %>% left_join(ecv_RSd) %>% mutate(prop = rs/rc) %>%
   ) %>% ungroup %>% mutate(tot = sum(pop)) %>%
   summarise(propt = sum(prop*pop/tot)) %>% pull(propt)
 
-########################### | Proxy incapacidad permanente | ###################
+############################ | Proxy permanent disability | ####################
 # P1906: Dada su condición física y mental, en su vida diaria ______ tiene dificultades para realizar las siguientes actividades:
 ecv %>% filter(region == 'Rural',Sexo == 'FEMENINO',P6040 >= 15,P6040 <= 59) %>%
   bind_rows(ecv %>% filter(region == 'Rural',Sexo == 'MASCULINO',P6040 >= 15,P6040 <= 64)) %>%
@@ -76,4 +76,4 @@ perma <- ecv_RCi %>% left_join(ecv_RSi,by = c('disc','Sexo')) %>% mutate(prop = 
 
 # writexl::write_xlsx(tibble(tipo = c('Parcial','Permanente'),
 #                            factor = c(incap,perma)),
-#                     'Data/Factor_ajuste.xlsx')
+#                     'Data/Adjust_factor.xlsx')
